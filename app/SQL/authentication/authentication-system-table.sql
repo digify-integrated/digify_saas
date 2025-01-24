@@ -1,0 +1,60 @@
+/* Audit Log Table */
+
+DROP TABLE IF EXISTS audit_log;
+CREATE TABLE audit_log (
+    audit_log_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY NOT NULL,
+    table_name VARCHAR(255) NOT NULL,
+    reference_id INT UNSIGNED NOT NULL,
+    log TEXT NOT NULL,
+    changed_by INT UNSIGNED NOT NULL,
+    changed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (changed_by) REFERENCES user_account(user_account_id)
+);
+
+CREATE INDEX audit_log_index_table_name ON audit_log(table_name, reference_id);
+CREATE INDEX audit_log_index_changed_at ON audit_log(changed_at);
+
+/* ----------------------------------------------------------------------------------------------------------------------------- */
+
+/* System Subscription Table */
+
+DROP TABLE IF EXISTS system_subscription;
+
+CREATE TABLE system_subscription (
+    system_subscription_id UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    system_subscription_code TEXT NOT NULL,
+    subscription_tier VARCHAR(500),
+    billing_cycle VARCHAR(500),
+    subscription_validity VARCHAR(500),
+    no_users VARCHAR(500),
+    subscription_status VARCHAR(500)
+);
+
+CREATE INDEX system_subscription_index_system_subscription_id ON system_subscription(system_subscription_id);
+CREATE INDEX system_subscription_index_system_subscription_code ON system_subscription(system_subscription_code);
+CREATE INDEX system_subscription_index_subscription_tier ON system_subscription(subscription_tier);
+CREATE INDEX system_subscription_index_subscription_status ON system_subscription(subscription_status);
+CREATE INDEX system_subscription_index_subscription_validity ON system_subscription(subscription_validity);
+CREATE INDEX system_subscription_index_no_users ON system_subscription(no_users);
+
+/* ----------------------------------------------------------------------------------------------------------------------------- */
+
+/* System Subscription Table */
+
+DROP TABLE IF EXISTS login_session;
+
+CREATE TABLE login_session (
+    login_session_id CHAR(36) PRIMARY KEY,
+    user_account_id INT UNSIGNED NOT NULL,
+    location VARCHAR(500) NOT NULL,
+    login_status VARCHAR(50) NOT NULL,
+    device VARCHAR(200) NOT NULL,
+    ip_address VARCHAR(50) NOT NULL,
+    login_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_account_id) REFERENCES user_account(user_account_id)
+);
+
+CREATE INDEX login_session_index_login_session_id ON login_session(login_session_id);
+CREATE INDEX login_session_index_user_account_id ON login_session(user_account_id);
+
+/* ----------------------------------------------------------------------------------------------------------------------------- */

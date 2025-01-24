@@ -1,0 +1,58 @@
+<?php
+// Start the session to track user login status
+session_start();
+
+// Initialize the Router
+require_once './router.php';
+$router = new Router();
+
+// Define Public Routes (accessible only when not logged in)
+$publicRoutes = [
+    '/' => ['LoginController', 'index'],
+    '/forgot' => ['ForgotPasswordController', 'index'],
+    '/oAuth' => ['OAuthController', 'index'],
+    '/reset' => ['ResetPasswordController', 'index'],
+    '/user' => ['LoginController', 'index'],
+    '/user/{id}' => ['LoginController', 'show'],
+];
+
+// Define Logged-in Routes (accessible only when logged in)
+$loggedInRoutes = [
+    '/dashboard' => ['DashboardController', 'index'],
+    '/profile' => ['ProfileController', 'index'],
+    '/settings' => ['SettingsController', 'index'],
+];
+
+$router->add('/user/create', 'UserController', 'create'); // POST
+
+// Read (GET /user/{id}) – to get user details
+$router->add('/user/{id}', 'UserController', 'read'); // GET
+
+// Update (PUT /user/{id}) – to update user details
+$router->add('/user/{id}', 'UserController', 'update'); // PUT
+
+// Delete (DELETE /user/{id}) – to delete a user
+$router->add('/user/{id}', 'UserController', 'delete'); // DELETE
+
+// Check if the user is logged in (e.g., check if $_SESSION['user'] is set)
+$isLoggedIn = isset($_SESSION['user']);
+
+// Add public routes to the router
+foreach ($publicRoutes as $route => $controllerMethod) {
+    // Add the route if the user is NOT logged in
+    if (!$isLoggedIn) {
+        $router->add($route, $controllerMethod[0], $controllerMethod[1]);
+    }
+}
+
+// Add logged-in routes to the router
+foreach ($loggedInRoutes as $route => $controllerMethod) {
+    // Add the route if the user IS logged in
+    if ($isLoggedIn) {
+        $router->add($route, $controllerMethod[0], $controllerMethod[1]);
+    }
+}
+
+// Handle the current route
+$url = $_SERVER['REQUEST_URI'];
+$router->route($url);
