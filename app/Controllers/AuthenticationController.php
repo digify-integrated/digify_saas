@@ -16,4 +16,8 @@ class AuthenticationController {
     public function index() {
         require_once './app/Views/Pages/Authentication/login.php';
     }
+
+    public function authenticate() {
+        // Code here
+    }
 }

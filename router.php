@@ -24,8 +24,8 @@ class Router {
      * @return void
      */
     public function add($route, $controller, $method, $httpMethod = 'GET') {
-        // Convert dynamic segments (e.g., {id}) into regex named groups (e.g., (?P<id>\w+))
-        $routePattern = preg_replace('/\{(\w+)\}/', '(?P<$1>\w+)', $route);
+        // Convert dynamic segments (e.g., {id}) into regex named groups (e.g., (?P<id>[^/]+))
+        $routePattern = preg_replace('/\{(\w+)\}/', '(?P<$1>[^/]+)', $route);
 
         // Store route information
         $this->routes[$routePattern] = [

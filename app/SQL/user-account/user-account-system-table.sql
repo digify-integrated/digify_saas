@@ -1,7 +1,7 @@
 DROP TABLE IF EXISTS user_account;
 
 CREATE TABLE user_account (
-    user_account_id CHAR(36) PRIMARY KEY NOT NULL,
+    user_account_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY NOT NULL,
     file_as VARCHAR(300) NOT NULL,
     email VARCHAR(255),
     username VARCHAR(100) NOT NULL,
@@ -15,16 +15,16 @@ CREATE TABLE user_account (
     two_factor_auth VARCHAR(5) DEFAULT 'Yes',
     multiple_session VARCHAR(5) DEFAULT 'Yes',
     last_failed_login_attempt DATETIME,
-    failed_login_attempts INT(1),
+    failed_login_attempts INT(1) DEFAULT 0,
     reset_token VARCHAR(255),
     reset_token_expiry_date DATETIME,
-    session_token VARCHAR(255) PRIMARY KEY,
+    session_token VARCHAR(255),
     otp VARCHAR(255),
     otp_expiry_date DATETIME,
-    failed_otp_attempts INT(1),
+    failed_otp_attempts INT(1) DEFAULT 0,
     last_password_change DATETIME,
     last_password_reset DATETIME,
-    created_date DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
     last_log_by INT UNSIGNED DEFAULT 1,
     FOREIGN KEY (last_log_by) REFERENCES user_account(user_account_id)
 );
@@ -41,11 +41,11 @@ DROP TABLE IF EXISTS password_history;
 
 CREATE TABLE password_history (
     password_history_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY NOT NULL,
-    user_account_id CHAR(36) NOT NULL,
+    user_account_id INT UNSIGNED NOT NULL,
     password VARCHAR(255) NOT NULL,
     password_change_date DATETIME DEFAULT CURRENT_TIMESTAMP,
     created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-    changed_by CHAR(36) NOT NULL,
+    changed_by INT UNSIGNED NOT NULL,
     FOREIGN KEY (user_account_id) REFERENCES user_account(user_account_id),
     FOREIGN KEY (changed_by) REFERENCES user_account(user_account_id)
 );

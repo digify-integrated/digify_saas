@@ -21,7 +21,8 @@ $router = new Router();
  * These routes are registered when the user is not logged in.
  */
 $publicRoutes = [
-    '/' => ['AuthenticationController', 'index'], // Route: '/' -> AuthenticationController::index
+    '/login' => ['AuthenticationController', 'index'], // Route: '/' -> AuthenticationController::index
+    '/authenticate' => ['AuthenticationController', 'authenticate', 'POST'], // Route: '/' -> AuthenticationController::index
 ];
 
 /**
