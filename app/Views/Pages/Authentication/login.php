@@ -22,7 +22,7 @@
             <div class="d-flex flex-column-fluid flex-lg-row-auto justify-content-center justify-content-lg-end p-5">
                 <div class="bg-body d-flex flex-column align-items-stretch flex-center rounded-4 w-md-600px p-10">
                     <div class="d-flex flex-center flex-column flex-column-fluid px-lg-5 pb-5">
-                        <form class="form w-100" id="signin-form" method="post" action="#">
+                        <form class="form w-100" id="signin-form" method="POST">
                             <img src="./assets/images/logos/logo-dark.svg" class="mb-5" alt="Logo-Dark" />
                             <h2 class="mb-2 mt-4 fs-1 fw-bolder">Welcome to <?php echo APP_NAME ?></h2>
                             <p class="mb-10 fs-5">Fueling digital growth, empowering your success</p>

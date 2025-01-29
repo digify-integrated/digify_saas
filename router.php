@@ -26,12 +26,12 @@ class Router {
     public function add($route, $controller, $method, $httpMethod = 'GET') {
         // Convert dynamic segments (e.g., {id}) into regex named groups (e.g., (?P<id>[^/]+))
         $routePattern = preg_replace('/\{(\w+)\}/', '(?P<$1>[^/]+)', $route);
-
-        // Store route information
-        $this->routes[$routePattern] = [
+        // Pre-compile the regex pattern to enhance matching performance
+        $this->routes[] = [
+            'pattern' => '#^' . $routePattern . '$#', 
             'controller' => $controller,
             'method' => $method,
-            'httpMethod' => $httpMethod
+            'httpMethod' => strtoupper($httpMethod)
         ];
     }
 
@@ -43,51 +43,87 @@ class Router {
      * @return void
      */
     public function route($url) {
-        // Get the base URL (to handle the script's directory)
-        $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
-        
-        // Remove the base URL from the requested URL
-        $url = str_replace($baseUrl, '', $url);
-
-        // Parse the URL to get only the path
-        $url = parse_url($url, PHP_URL_PATH);
+        $url = $this->normalizeUrl($url);
 
         // Iterate through defined routes to find a match
-        foreach ($this->routes as $pattern => $routeData) {
-            if (preg_match("#^$pattern$#", $url, $matches)) {
+        foreach ($this->routes as $route) {
+            if (preg_match($route['pattern'], $url, $matches)) {
                 // Check if the HTTP method matches
-                if ($_SERVER['REQUEST_METHOD'] === $routeData['httpMethod']) {
-                    $params = [];
+                if ($_SERVER['REQUEST_METHOD'] === $route['httpMethod']) {
+                    $params = $this->extractParams($matches);
 
-                    // Extract dynamic parameters from the route
-                    foreach ($matches as $key => $value) {
-                        if (!is_int($key)) {
-                            $params[$key] = $value;
-                        }
-                    }
+                    $controllerClass = 'App\\Controllers\\' . $route['controller'];
 
-                    $controller = $routeData['controller'];
-                    $method = $routeData['method'];
+                    // Include the controller file and check existence
+                    $this->loadController($controllerClass);
 
-                    // Include the controller file
-                    require_once './app/Controllers/' . $controller . '.php';
-
-                    // Fully qualified class name with namespace
-                    $controllerClass = 'App\\Controllers\\' . $controller;
-
-                    // Instantiate the controller and call the appropriate method
-                    $controllerObj = new $controllerClass();
-                    call_user_func_array([$controllerObj, $method], $params);
+                    // Instantiate the controller and invoke the method
+                    $controller = new $controllerClass();
+                    call_user_func_array([$controller, $route['method']], $params);
                     return;
                 } else {
-                    // HTTP method not allowed
-                    header("HTTP/1.1 405 Method Not Allowed");
-                    exit;
+                    $this->sendError(405, "Method Not Allowed");
                 }
             }
         }
 
         // Route not found - include the 404 error page
-        require_once './app/Views/Errors/404.php';
+        $this->sendError(404, "Page Not Found");
+    }
+
+    /**
+     * Normalize the URL (e.g., removing base path and query strings).
+     * 
+     * @param string $url The URL to normalize.
+     * @return string Normalized URL.
+     */
+    private function normalizeUrl($url) {
+        $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
+        $url = str_replace($baseUrl, '', $url);
+        return parse_url($url, PHP_URL_PATH);
+    }
+
+    /**
+     * Extract dynamic parameters from regex matches.
+     * 
+     * @param array $matches The regex matches.
+     * @return array The extracted parameters.
+     */
+    private function extractParams($matches) {
+        $params = [];
+        foreach ($matches as $key => $value) {
+            if (!is_int($key)) {
+                $params[$key] = filter_var($value, FILTER_SANITIZE_STRING); // Sanitize inputs for security
+            }
+        }
+        return $params;
+    }
+
+    /**
+     * Include the controller file and handle errors if not found.
+     * 
+     * @param string $controllerClass The fully qualified controller class name.
+     * @return void
+     */
+    private function loadController($controllerClass) {
+        // Autoloader will automatically take care of loading the controller class
+        if (!class_exists($controllerClass)) {
+            $this->sendError(500, "Controller not found: $controllerClass");
+        }
+    }
+
+
+
+    /**
+     * Send an HTTP error response and exit.
+     * 
+     * @param int $code The HTTP status code.
+     * @param string $message The error message.
+     * @return void
+     */
+    private function sendError($code, $message) {
+        http_response_code($code);
+        echo json_encode(['error' => $message]);
+        exit;
     }
 }

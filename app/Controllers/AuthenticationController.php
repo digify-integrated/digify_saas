@@ -2,8 +2,6 @@
 
 namespace App\Controllers;
 
-require_once './autoload.php';
-
 use App\Models\Authentication; 
 
 class AuthenticationController {
@@ -18,6 +16,11 @@ class AuthenticationController {
     }
 
     public function authenticate() {
-        // Code here
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            echo json_encode(["message" => "Form submitted successfully!"]);
+        } else {
+            header("HTTP/1.1 405 Method Not Allowed");
+            exit;
+        }
     }
 }

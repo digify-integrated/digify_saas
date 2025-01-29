@@ -12,6 +12,7 @@ date_default_timezone_set('Asia/Manila');
 # -------------------------------------------------------------
 
 define('APP_NAME', 'Digify');                           // The name of your app
+define('APP_URL', 'http://localhost/');                           // The name of your app
 define('DEBUG_MODE', true);                             // Enable/disable error display
 
 # -------------------------------------------------------------
