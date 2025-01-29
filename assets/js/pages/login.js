@@ -4,63 +4,62 @@ import { handleSystemError } from '../modules/system-errors.js';
 
 /**
  * Handles the form submission for login authentication.
+ * 
  * @param {Event} e - The form submit event.
  */
 const handleLoginFormSubmit = async (e) => {
     e.preventDefault(); // Prevent the default form submission
 
     const submitButtonId = 'signin';
-    disableButton(submitButtonId);
+    disableButton(submitButtonId); // Disable button while submitting
 
     const formData = new FormData(e.target); // Collect form data
-    const baseUrl = `${window.location.origin}`;
+    const baseUrl = window.location.origin; // Get base URL of the app
 
     try {
-        const response = await authenticateUser(baseUrl, formData);
+        const response = await authenticateUser(baseUrl, formData); // Authenticate user
         const data = await response.json(); // Parse JSON response
 
-        // Handle response based on success/failure and other conditions
+        // Handle the response based on conditions
         if (response.ok) {
             handleSuccessResponse(data);
-        }
-        else {
+        } else {
             handleSystemError(data.error);
         }
     } catch (error) {
-        handleSystemError(error);
+        handleSystemError(error); // Handle system error
     } finally {
-        enableButton(submitButtonId); // Re-enable button after the request
+        enableButton(submitButtonId); // Re-enable button after request
     }
 };
 
 /**
  * Makes a POST request to the authentication endpoint.
+ *
  * @param {string} baseUrl - The base URL of the application.
  * @param {FormData} formData - The form data to be sent in the request.
  * @returns {Promise<Response>} - The response from the fetch request.
  */
-const authenticateUser = async (baseUrl, formData) => {
-    return fetch(`${baseUrl}/authenticate`, {
+const authenticateUser = (baseUrl, formData) =>
+    fetch(`${baseUrl}/authenticate`, {
         method: 'POST',
         body: formData,
-        headers: {
-            'Accept': 'application/json',
-        },
+        headers: { 'Accept': 'application/json' },
     });
-};
 
 /**
  * Handles the success response from the authentication API.
+ * 
  * @param {Object} data - The data returned from the API.
  */
-const handleSuccessResponse = (data) => {
-    if (data.success) {
-        window.location.href = data.redirectLink; // Redirect on successful login
-    } else if (data.passwordExpired) {
-        setNotification(data.title, data.message, data.messageType);
-        window.location.href = data.redirectLink; // Redirect to password change page
+const handleSuccessResponse = ({ success, passwordExpired, title, message, messageType, redirectLink }) => {
+    if (success) {
+        window.location.href = redirectLink; // Redirect on successful login
+    } else if (passwordExpired) {
+        setNotification(title, message, messageType);
+        window.location.href = redirectLink; // Redirect to password change page
     } else {
-        showNotification(data.title, data.message, data.messageType); // Show general notification
+        showNotification(title, message, messageType); // Show general notification
     }
 };
 

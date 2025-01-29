@@ -40,7 +40,7 @@
                                 </div>
                             </div>
                             <div class="d-flex flex-stack flex-wrap gap-3 fs-base fw-semibold mb-8">
-                                <a href="forgot-password.php" class="link-primary">Forgot Password?</a>
+                                <a href="/forgot" class="link-primary">Forgot Password?</a>
                             </div>
 
                             <div class="d-grid">
