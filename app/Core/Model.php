@@ -1,56 +1,66 @@
-<?php 
+<?php
+
 namespace App\Core;
 
-use App\Core\Database;
 use PDO;
+use PDOException;
+use PDOStatement;
 
-abstract class Model {
-    protected $db;
+abstract class Model
+{
+    protected PDO $db;
 
-    public function __construct() {
-        $dbInstance = Database::getInstance(
-            DB_HOST, 
-            DB_NAME, 
-            DB_USER, 
-            DB_PASS
-        );
-        
-        $this->db = $dbInstance->getConnection();
+    /**
+     * Constructor with Dependency Injection for better testability.
+     */
+    public function __construct(PDO $db)
+    {
+        $this->db = $db;
     }
 
-    public function query(string $query, array $params = []) {
+    /**
+     * Executes a prepared query.
+     */
+    public function query(string $sql, array $params = []): ?PDOStatement
+    {
         try {
-            $stmt = $this->db->prepare($query);
-            error_log('Executing query: ' . $this->maskQuery($query, $params));
+            $stmt = $this->db->prepare($sql);
+            error_log('Executing query: ' . $this->maskQuery($sql, $params));
 
             $stmt->execute($params);
             return $stmt;
-        } catch (\PDOException $e) {
+        } catch (PDOException $e) {
             error_log('Database query error: ' . $e->getMessage());
-            return false;
+            return null;
         }
     }
-    
-    public function fetchAll(string $query, array $params = []) {
-        $stmt = $this->query($query, $params);
-        return $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+
+    /**
+     * Fetches all results from a query.
+     */
+    public function fetchAll(string $sql, array $params = []): array
+    {
+        return $this->query($sql, $params)?->fetchAll(PDO::FETCH_ASSOC) ?? [];
     }
 
-    
-    public function fetch(string $query, array $params = []) {
-        $stmt = $this->query($query, $params);
-        return $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : null;
+    /**
+     * Fetches a single result from a query.
+     */
+    public function fetch(string $sql, array $params = []): ?array
+    {
+        return $this->query($sql, $params)?->fetch(PDO::FETCH_ASSOC) ?: null;
     }
 
-    private function maskQuery(string $query, array $params): string {
+    /**
+     * Masks query parameters for logging.
+     */
+    private function maskQuery(string $sql, array $params): string
+    {
         foreach ($params as $key => $value) {
-            $valuePlaceholder = is_numeric($value) ? '[NUMERIC_PARAM]' : '[STRING_PARAM]';
+            $replacement = is_numeric($value) ? '[NUMERIC_PARAM]' : '[STRING_PARAM]';
             $placeholder = is_int($key) ? '?' : ":$key";
-            $query = str_replace($placeholder, $valuePlaceholder, $query);
+            $sql = preg_replace('/' . preg_quote($placeholder, '/') . '/', $replacement, $sql, 1);
         }
-        return $query;
+        return $sql;
     }
-
-
 }
-?>
