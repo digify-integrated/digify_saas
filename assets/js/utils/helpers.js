@@ -36,33 +36,3 @@ export const resetForm = (formId) => {
     // Reset form fields
     form.reset();
 };
-
-/**
- * Detects and returns the user's device and browser information.
- *
- * @returns {string} A formatted string with the browser and device information.
- */
-export const getDeviceInfo = () => {
-    const userAgent = navigator.userAgent;
-
-    const deviceMap = {
-        Android: /Android/i,
-        iOS: /iPhone|iPad|iPod/i,
-        Windows: /Windows NT/i,
-        MacOS: /Mac OS/i,
-        Linux: /Linux/i
-    };
-
-    const browserMap = {
-        Firefox: /Firefox/i,
-        Opera: /OPR|Opera/i,
-        Chrome: /Chrome/i,
-        Safari: /Safari/i,
-        'Internet Explorer': /MSIE|Trident/i
-    };
-
-    const device = Object.entries(deviceMap).find(([, regex]) => regex.test(userAgent))?.[0] || 'Unknown Device';
-    const browser = Object.entries(browserMap).find(([, regex]) => regex.test(userAgent))?.[0] || 'Unknown Browser';
-
-    return `${browser} - ${device}`;
-};

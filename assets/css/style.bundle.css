@@ -55487,6 +55487,10 @@ body,html {
     font-family: Inter,Helvetica,sans-serif
 }
 
+body {
+    background-image: url('../../assets/images/auth/bg10.jpeg');
+}
+
 @media (max-width: 991.98px) {
     body,html {
         font-size:12px!important

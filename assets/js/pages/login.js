@@ -1,6 +1,45 @@
-import { disableButton, enableButton } from '../utils/form-utilities.js';
+import { disableButton, enableButton, initPasswordToggle } from '../utils/form-utilities.js';
 import { showNotification, setNotification } from '../modules/notifications.js';
 import { handleSystemError } from '../modules/system-errors.js';
+import { getDeviceInfo } from '../utils/device-info.js';
+import { displayValidationErrors, setupDynamicErrorRemoval } from '../utils/form-validation.js';
+
+document.addEventListener('DOMContentLoaded', () => {
+    initPasswordToggle();
+});
+
+// Custom error messages
+const customMessages = {
+    username: {
+        required: 'Please enter your username'
+    },
+    password: {
+        required: "Please enter your password"
+    },
+};
+
+/**
+ * Validate the login form inputs.
+ * 
+ * @param {FormData} formData - The form data to be validated.
+ * @returns {Object} - An object containing validation result and error messages if any.
+ */
+const validateLoginForm = (formData) => {
+    const errors = {};
+
+    const username = formData.get('username').trim();
+    const password = formData.get('password').trim();
+
+    if (!username) {
+        errors.username = customMessages.username.required;
+    }
+
+    if (!password) {
+        errors.password = customMessages.password.required;
+    }
+
+    return errors;
+};
 
 /**
  * Handles the form submission for login authentication.
@@ -11,31 +50,41 @@ const handleLoginFormSubmit = async (e) => {
     e.preventDefault(); // Prevent the default form submission
 
     const submitButtonId = 'signin';
-    disableButton(submitButtonId); // Disable button while submitting
+    disableButton(submitButtonId);
 
-    const formData = new FormData(e.target); // Collect form data
-    const baseUrl = window.location.origin; // Get base URL of the app
+    const formData = new FormData(e.target);
+    
+    const validationErrors = validateLoginForm(formData);
+
+    if (Object.keys(validationErrors).length > 0) {
+        displayValidationErrors(validationErrors);
+        enableButton(submitButtonId);
+        return;
+    }
+    
+    formData.append('device_info', getDeviceInfo());
+
+    const baseUrl = window.location.origin;
 
     try {
-        const response = await authenticateUser(baseUrl, formData); // Authenticate user
-        const data = await response.json(); // Parse JSON response
+        const response = await authenticateUser(baseUrl, formData);
+        const data = await response.json();
 
-        // Handle the response based on conditions
         if (response.ok) {
             handleSuccessResponse(data);
         } else {
             handleSystemError(data.error);
         }
     } catch (error) {
-        handleSystemError(error); // Handle system error
+        handleSystemError(error);
     } finally {
-        enableButton(submitButtonId); // Re-enable button after request
+        enableButton(submitButtonId);
     }
 };
 
 /**
  * Makes a POST request to the authentication endpoint.
- *
+ * 
  * @param {string} baseUrl - The base URL of the application.
  * @param {FormData} formData - The form data to be sent in the request.
  * @returns {Promise<Response>} - The response from the fetch request.
@@ -54,14 +103,17 @@ const authenticateUser = (baseUrl, formData) =>
  */
 const handleSuccessResponse = ({ success, passwordExpired, title, message, messageType, redirectLink }) => {
     if (success) {
-        window.location.href = redirectLink; // Redirect on successful login
+        window.location.href = redirectLink;
     } else if (passwordExpired) {
         setNotification(title, message, messageType);
-        window.location.href = redirectLink; // Redirect to password change page
+        window.location.href = redirectLink;
     } else {
-        showNotification(title, message, messageType); // Show general notification
+        showNotification(title, message, messageType);
     }
 };
 
 // Add event listener to the form for submission
 document.querySelector('#signin-form').addEventListener('submit', handleLoginFormSubmit);
+
+// Set up dynamic error removal
+setupDynamicErrorRemoval('#signin-form');

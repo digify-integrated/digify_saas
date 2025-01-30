@@ -34,3 +34,44 @@ export const enableButton = (buttonId) => {
         delete button.dataset.originalText;
     }
 };
+
+/**
+ * Initializes password visibility toggle for all elements with the class `password-addon`.
+ *
+ */
+export function initPasswordToggle() {
+    document.addEventListener('click', (event) => {
+        const toggleButton = event.target.closest('.password-addon');
+        if (!toggleButton) return;
+
+        const inputField = toggleButton.previousElementSibling;
+        const eyeIcon = toggleButton.querySelector('i');
+
+        if (inputField && eyeIcon) {
+            togglePasswordVisibility(inputField, eyeIcon, toggleButton);
+        }
+    });
+}
+
+/**
+ * Toggles the password field visibility.
+ * 
+ * @param {HTMLInputElement} inputField - The password input field.
+ * @param {HTMLElement} eyeIcon - The icon inside the toggle button.
+ * @param {HTMLButtonElement} toggleButton - The button that toggles password visibility.
+ */
+const togglePasswordVisibility = (inputField, eyeIcon, toggleButton) => {
+    const isPassword = inputField.type === 'password';
+    inputField.type = isPassword ? 'text' : 'password';
+
+    // Toggle eye icon classes
+    eyeIcon.classList.toggle('ki-eye-slash', !isPassword);
+    eyeIcon.classList.toggle('ki-eye', isPassword);
+
+    // Update the aria-label for accessibility
+    toggleButton.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
+
+    // Use requestAnimationFrame to prevent layout thrashing
+    requestAnimationFrame(() => inputField.focus());
+};
+
