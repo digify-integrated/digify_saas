@@ -114,23 +114,21 @@ class Authentication extends Model {
     #   Update methods
     # -------------------------------------------------------------
 
-    public function updateLoginAttempt($p_user_account_id, $p_failed_login_attempts, $p_last_failed_login_attempt) {
-        $sql = "CALL updateLoginAttempt(:p_user_account_id, :p_failed_login_attempts, :p_last_failed_login_attempt)";
+    public function updateLoginAttempt($p_user_account_id, $p_failed_login_attempts) {
+        $sql = "CALL updateLoginAttempt(:p_user_account_id, :p_failed_login_attempts)";
         
         return $this->query($sql, [
             'p_user_account_id' => $p_user_account_id,
-            'p_failed_login_attempts' => $p_failed_login_attempts,
-            'p_last_failed_login_attempt' => $p_last_failed_login_attempt
+            'p_failed_login_attempts' => $p_failed_login_attempts
         ]);
     }
 
-    public function updateAccountLock($p_user_account_id, $p_locked, $p_lock_duration) {
-        $sql = 'CALL updateAccountLock(:p_user_account_id, :p_locked, :p_lock_duration)';
+    public function updateAccountLock($p_user_account_id, $p_locked) {
+        $sql = 'CALL updateAccountLock(:p_user_account_id, :p_locked)';
         
         return $this->query($sql, [
             'p_user_account_id' => $p_user_account_id,
-            'p_locked' => $p_locked,
-            'p_lock_duration' => $p_lock_duration
+            'p_locked' => $p_locked
         ]);
     }
 

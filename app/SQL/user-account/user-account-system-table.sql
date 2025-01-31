@@ -9,13 +9,12 @@ CREATE TABLE user_account (
     phone VARCHAR(50),
     profile_picture VARCHAR(500) NULL,
     password_expiry_date DATE NOT NULL,
-    locked VARCHAR(5) DEFAULT 'No',
     active VARCHAR(5) DEFAULT 'Yes',
-    receive_notification VARCHAR(5) DEFAULT 'Yes',
-    two_factor_auth VARCHAR(5) DEFAULT 'Yes',
+    two_factor_auth VARCHAR(5) DEFAULT 'No',
     multiple_session VARCHAR(5) DEFAULT 'Yes',
     last_failed_login_attempt DATETIME,
-    failed_login_attempts INT(1) DEFAULT 0,
+    failed_login_attempts INT(5) DEFAULT 0,
+    locked_duration INT DEFAULT 0,
     reset_token VARCHAR(255),
     reset_token_expiry_date DATETIME,
     session_token VARCHAR(255),
@@ -31,7 +30,6 @@ CREATE TABLE user_account (
 
 CREATE INDEX user_account_index_email ON user_account(email);
 CREATE INDEX user_account_index_username ON user_account(username);
-CREATE INDEX user_account_index_locked ON user_account(locked);
 CREATE INDEX user_account_index_active ON user_account(active);
 
 INSERT INTO user_account (file_as, username, email, password, password_expiry_date) VALUES ('Digify Bot', 'digifybot', 'digifybot@gmail.com', 'Lu%2Be%2BRZfTv%2F3T0GR%2Fwes8QPJvE3Etx1p7tmryi74LNk%3D', '2025-12-31');

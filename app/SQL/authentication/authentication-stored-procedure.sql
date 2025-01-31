@@ -129,8 +129,7 @@ END //
 DROP PROCEDURE IF EXISTS updateLoginAttempt//
 CREATE PROCEDURE updateLoginAttempt(
     IN p_user_account_id INT, 
-    IN p_failed_login_attempts VARCHAR(255), 
-    IN p_last_failed_login_attempt DATETIME
+    IN p_failed_login_attempts INT(5)
 )
 BEGIN
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
@@ -142,7 +141,7 @@ BEGIN
 
     UPDATE user_account
     SET failed_login_attempts = p_failed_login_attempts, 
-        last_failed_login_attempt = p_last_failed_login_attempt
+        last_failed_login_attempt = NOW()
     WHERE user_account_id = p_user_account_id;
 
     COMMIT;

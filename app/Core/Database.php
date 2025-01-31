@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Core;
@@ -8,33 +7,27 @@ use PDO;
 use PDOException;
 use RuntimeException;
 
-class Database
-{
-    private static ?self $instance = null;
+class Database {
+    private static array $instances = [];
     private PDO $connection;
-    
-    // Database credentials should ideally be loaded from an environment file
-    private static string $host;
-    private static string $dbname;
-    private static string $username;
-    private static string $password;
 
     /**
-     * Private constructor to prevent direct instantiation.
+     * Private constructor to enforce Singleton pattern.
      */
-    private function __construct()
-    {
+    private function __construct(string $host, string $dbname, string $username, string $password) {
         try {
-            $options = [
-                PDO::ATTR_EMULATE_PREPARES   => false,
-                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci",
-                PDO::ATTR_PERSISTENT         => true
-            ];
-
-            $dsn = sprintf("mysql:host=%s;dbname=%s;charset=utf8mb4", self::$host, self::$dbname);
-            $this->connection = new PDO($dsn, self::$username, self::$password, $options);
+            $this->connection = new PDO(
+                dsn: "mysql:host={$host};dbname={$dbname};charset=utf8mb4",
+                username: $username,
+                password: $password,
+                options: [
+                    PDO::ATTR_EMULATE_PREPARES => false,
+                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                    PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci",
+                    PDO::ATTR_PERSISTENT => true
+                ]
+            );
         } catch (PDOException $e) {
             error_log('Database connection failed: ' . $e->getMessage());
             throw new RuntimeException('Database connection error.');
@@ -42,36 +35,39 @@ class Database
     }
 
     /**
-     * Initializes database credentials.
+     * Returns a singleton instance of the Database connection.
      */
-    public static function configure(string $host, string $dbname, string $username, string $password): void
-    {
-        self::$host = $host;
-        self::$dbname = $dbname;
-        self::$username = $username;
-        self::$password = $password;
-    }
+    public static function getInstance(
+        string $host,
+        string $dbname,
+        string $username,
+        string $password
+    ): self {
+        $key = md5("{$host}_{$dbname}_{$username}");
 
-    /**
-     * Returns the singleton instance.
-     */
-    public static function getInstance(): self
-    {
-        if (self::$instance === null) {
-            if (!isset(self::$host, self::$dbname, self::$username, self::$password)) {
-                throw new RuntimeException('Database credentials not configured. Call Database::configure() first.');
-            }
-            self::$instance = new self();
+        if (!isset(self::$instances[$key])) {
+            self::$instances[$key] = new self($host, $dbname, $username, $password);
         }
 
-        return self::$instance;
+        return self::$instances[$key];
     }
 
     /**
-     * Returns the PDO connection.
+     * Returns the active PDO connection.
      */
-    public function getConnection(): PDO
-    {
+    public function getConnection(): PDO {
         return $this->connection;
+    }
+
+    /**
+     * Prevent cloning of the instance.
+     */
+    private function __clone() {}
+
+    /**
+     * Prevent unserialization.
+     */
+    public function __wakeup(): void {
+        throw new RuntimeException('Cannot unserialize a singleton.');
     }
 }

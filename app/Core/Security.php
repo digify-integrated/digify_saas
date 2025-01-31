@@ -1,127 +1,126 @@
 <?php
+declare(strict_types=1);
 
 namespace App\Core;
+
+use RuntimeException;
 
 class Security
 {
     private const CIPHER_METHOD = 'aes-256-cbc';
-    
+
     /**
-     * Encrypts a given plaintext string.
+     * Encrypts data using AES-256-CBC.
      */
-    public static function encrypt(string $plainText): string|false
-    {
+    public static function encryptData(string $plainText): string {
         $plainText = trim($plainText);
         if ($plainText === '') {
-            return false;
+            throw new RuntimeException('Encryption failed: Empty input.');
         }
 
-        $ivLength = openssl_cipher_iv_length(self::CIPHER_METHOD);
-        $iv = random_bytes($ivLength);
+        $iv = random_bytes(openssl_cipher_iv_length(self::CIPHER_METHOD));
         $ciphertext = openssl_encrypt($plainText, self::CIPHER_METHOD, ENCRYPTION_KEY, OPENSSL_RAW_DATA, $iv);
 
-        return $ciphertext ? rawurlencode(base64_encode($iv . $ciphertext)) : false;
+        if (!$ciphertext) {
+            throw new RuntimeException('Encryption failed.');
+        }
+
+        return rawurlencode(base64_encode($iv . $ciphertext));
     }
 
     /**
-     * Decrypts an encrypted string.
+     * Decrypts AES-256-CBC encrypted data.
      */
-    public static function decrypt(string $ciphertext): string|false
-    {
-        $decodedData = base64_decode(rawurldecode($ciphertext));
+    public static function decryptData(string $ciphertext): string {
+        $decodedData = base64_decode(rawurldecode($ciphertext), true);
         if ($decodedData === false) {
-            return false;
+            throw new RuntimeException('Decryption failed: Invalid encoding.');
         }
 
         $ivLength = openssl_cipher_iv_length(self::CIPHER_METHOD);
         if (strlen($decodedData) < $ivLength) {
-            return false;
+            throw new RuntimeException('Decryption failed: Invalid data.');
         }
 
         $iv = substr($decodedData, 0, $ivLength);
         $ciphertext = substr($decodedData, $ivLength);
+        $decrypted = openssl_decrypt($ciphertext, self::CIPHER_METHOD, ENCRYPTION_KEY, OPENSSL_RAW_DATA, $iv);
 
-        return openssl_decrypt($ciphertext, self::CIPHER_METHOD, ENCRYPTION_KEY, OPENSSL_RAW_DATA, $iv) ?: false;
+        return $decrypted !== false ? $decrypted : throw new RuntimeException('Decryption failed.');
     }
 
     /**
-     * Obscures an email address for privacy.
+     * Obscures an email for privacy.
      */
-    public static function obscureEmail(string $email): string
-    {
+    public static function obscureEmail(string $email): string {
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            return 'Invalid email format';
+            throw new RuntimeException('Invalid email format.');
         }
 
-        [$username, $domain] = explode('@', $email);
+        [$username, $domain] = explode('@', $email, 2);
         $maskedUsername = substr($username, 0, 1) . str_repeat('*', max(0, strlen($username) - 2)) . substr($username, -1);
 
-        return "{$maskedUsername}@{$domain}";
+        return $maskedUsername . '@' . $domain;
     }
 
     /**
-     * Obscures a credit card number, showing only the last 4 digits.
+     * Masks all but the last 4 digits of a card number.
      */
-    public static function obscureCardNumber(string $cardNumber): string
-    {
-        $length = strlen($cardNumber);
-        if ($length < 4) {
-            return 'Invalid card number';
+    public static function obscureCardNumber(string $cardNumber): string {
+        if (!ctype_digit($cardNumber) || strlen($cardNumber) < 4) {
+            throw new RuntimeException('Invalid card number.');
         }
 
-        $masked = str_repeat('*', $length - 4);
-        return wordwrap($masked, 4, ' ', true) . ' ' . substr($cardNumber, -4);
+        return str_pad('', strlen($cardNumber) - 4, '*') . substr($cardNumber, -4);
     }
 
     /**
-     * Generates a secure random filename.
+     * Generates a random alphanumeric filename.
      */
-    public static function generateFileName(int $minLength = 4, int $maxLength = 8): string
-    {
-        return self::generateRandomString($minLength, $maxLength);
+    public static function generateFileName(int $minLength = 4, int $maxLength = 8): string {
+        $length = random_int($minLength, $maxLength);
+        return self::randomString($length);
     }
 
     /**
-     * Checks if a directory exists, creates it if necessary.
+     * Checks if a directory exists and is writable.
      */
-    public static function ensureDirectoryExists(string $directory): bool|string
-    {
-        if (is_dir($directory) && is_writable($directory)) {
-            return true;
+    public static function directoryChecker(string $directory): bool {
+        if (!is_dir($directory) && !mkdir($directory, 0755, true) && !is_dir($directory)) {
+            throw new RuntimeException('Error creating directory: ' . (error_get_last()['message'] ?? 'Unknown error'));
         }
 
-        return mkdir($directory, 0755, true) ? true : 'Error creating directory: ' . (error_get_last()['message'] ?? 'Unknown error');
+        if (!is_writable($directory)) {
+            throw new RuntimeException('Directory exists but is not writable.');
+        }
+
+        return true;
     }
 
     /**
-     * Generates a secure token.
+     * Generates a secure random token.
      */
-    public static function generateToken(int $minLength = 10, int $maxLength = 12): string
-    {
-        return self::generateRandomString($minLength, $maxLength);
+    public static function generateToken(int $minLength = 10, int $maxLength = 12): string {
+        $length = random_int($minLength, $maxLength);
+        return self::randomString($length);
     }
 
     /**
-     * Generates a numeric OTP of specified length.
+     * Generates a secure OTP code of given length.
      */
-    public static function generateOTP(int $length = 6): string
-    {
+    public static function generateOTPToken(int $length = 6): string {
+        if ($length < 4 || $length > 10) {
+            throw new RuntimeException('OTP length must be between 4 and 10.');
+        }
+
         return (string) random_int(10 ** ($length - 1), (10 ** $length) - 1);
     }
 
     /**
-     * Generates a secure random string.
+     * Generates a secure random alphanumeric string.
      */
-    private static function generateRandomString(int $minLength, int $maxLength): string
-    {
-        $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-        $length = random_int($minLength, $maxLength);
-        $randomString = '';
-
-        for ($i = 0; $i < $length; $i++) {
-            $randomString .= $characters[random_int(0, strlen($characters) - 1)];
-        }
-
-        return $randomString;
+    private static function randomString(int $length): string {
+        $characters = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+        return implode('', array_map(fn () => $characters[random_int(0, strlen($characters) - 1)], range(1, $length)));
     }
 }

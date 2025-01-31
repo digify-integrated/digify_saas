@@ -53,9 +53,12 @@ export const removeError = (element) => {
 
     target?.classList.remove('is-invalid');
 
-    const error = element.parentElement.querySelector('.error');
-    if (error) {
+    // Ensure the correct error message is targeted
+    const error = element.closest('.input-group')?.nextElementSibling;
+    if (error?.classList.contains('error')) {
         error.remove();
+    } else {
+        element.parentElement?.querySelector('.error')?.remove();
     }
 };
 
@@ -81,5 +84,7 @@ export const displayValidationErrors = (errors) => {
 export const setupDynamicErrorRemoval = (formSelector) => {
     document.querySelectorAll(`${formSelector} input, ${formSelector} select, ${formSelector} textarea`).forEach((input) => {
         input.addEventListener('input', () => removeError(input));
+        input.addEventListener('change', () => removeError(input));
+        input.addEventListener('blur', () => removeError(input)); // Fix for password & auto-fill fields
     });
 };

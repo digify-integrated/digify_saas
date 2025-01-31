@@ -35,36 +35,74 @@ class AuthenticationController {
             $loginCredentials = $this->authentication->checkLoginCredentialsExist(null, $username);
 
             if ($loginCredentials['total'] === 0) {
-                $this->systemHelper->sendErrorResponse('Authentication Failed', 'Invalid credentials. Please check and try again.');
+                $this->systemHelper->sendErrorResponse('Invalid credentials. Please check and try again.');
             }
-    
+
             $ipAddress = $this->systemHelper->getPublicIPAddress();
             $location = $this->systemHelper->getLocation($ipAddress);
 
             $loginCredentialsDetails = $this->authentication->getLoginCredentials(null, $username);
             $userAccountID = $loginCredentialsDetails['user_account_id'] ?? '';
             $email = $loginCredentialsDetails['email'] ?? '';
-            $active = $this->security->decryptData($loginCredentialsDetails['active'] ?? '');
+            $active = $loginCredentialsDetails['active'] ?? '';
+            $locked = $loginCredentialsDetails['locked'] ?? '';
             $userPassword = $this->security->decryptData($loginCredentialsDetails['password'] ?? '');
-            $failedLoginAttempts = $this->security->decryptData($loginCredentialsDetails['failed_login_attempts'] ?? '');
-            $passwordExpiryDate = $this->security->decryptData($loginCredentialsDetails['password_expiry_date'] ?? '');
-            $accountLockDuration = $this->security->decryptData($loginCredentialsDetails['account_lock_duration'] ?? '');
+            $failedLoginAttempts = $loginCredentialsDetails['failed_login_attempts'] ?? '';
+            $passwordExpiryDate = $loginCredentialsDetails['password_expiry_date'] ?? '';
+            $twoFactorAuth = $loginCredentialsDetails['two_factor_auth'] ?? '';
+            $lockedDuration = $loginCredentialsDetails['locked_duration'] ?? '';
             $lastFailedLoginAttempt = $loginCredentialsDetails['last_failed_login_attempt'] ?? '';
-            $twoFactorAuth = $this->security->decryptData($loginCredentialsDetails['two_factor_auth'] ?? '');
             $encryptedUserID = $this->security->encryptData($userAccountID);
 
             if ($password !== $userPassword) {
-                $this->handleInvalidCredentials($userAccountID, $failedLoginAttempts, $accountLockDuration, $lastFailedLoginAttempt);
+                $failedLoginAttempts++;
+            
+                $securitySettingDetails = $this->securitySetting->getSecuritySetting(1);
+                $maxFailedLoginAttempts = $securitySettingDetails['value'] ?? MAX_FAILED_LOGIN_ATTEMPTS;
+        
+                if($failedLoginAttempts <= $maxFailedLoginAttempts){
+                    $this->authentication->updateLoginAttempt($userAccountID, $failedLoginAttempts);
+        
+                    $this->systemHelper->sendErrorResponse('Invalid credentials. Please check and try again.');
+                }
+
+                $time = time();
+                $lastFailedLoginTimestamp = strtotime($lastFailedLoginAttempt);
+                $unlockTime = $lastFailedLoginTimestamp + $lockedDuration;
+            
+                if ($time <= $unlockTime) {
+                    $remainingTime = $unlockTime - $time;
+                    $durationParts = $this->systemHelper->formatDuration($remainingTime);
+                }
+                else {
+                    $this->authentication->updateLoginAttempt($userAccountID, $failedLoginAttempts);
+
+                    $userAccountLockDurationSettingDetails = $this->securitySetting->getSecuritySetting(9);
+                    $baseLockDuration = $userAccountLockDurationSettingDetails['value'] ?? BASE_LOCK_DURATION;
+                    $maxLockDuration = 3600;
+            
+                    $lockDuration = min($maxLockDuration,$baseLockDuration * pow(2, ($failedLoginAttempts - $maxFailedLoginAttempts)));
+            
+                    $this->authentication->updateAccountLockDuration($userAccountID, $lockDuration);
+            
+                    $durationParts = $this->systemHelper->formatDuration($lockDuration);
+                }
+            
+                $message = 'Your account is locked. Try again in ' . (!empty($durationParts) ? implode(', ', $durationParts) : 'a moment') . '.';
+                
+                $this->systemHelper->sendErrorResponse($message);
             }
     
-            $this->checkAccountLock($userAccountID, $accountLockDuration, $lastFailedLoginAttempt);
-    
             if ($active === 'No') {
-                $this->systemHelper->sendErrorResponse('Account Inactive', 'Your account is inactive. Please contact the administrator for assistance.');
+                $this->systemHelper->sendErrorResponse('Your account is inactive. Please contact the administrator for assistance.');
+            }
+
+            if ($locked === 'Yes') {
+                $this->systemHelper->sendErrorResponse('Your account is locked. Please contact the administrator for assistance.');
             }
     
             if ($this->checkPasswordHasExpired($passwordExpiryDate)) {
-                $this->handlePasswordExpiration($userAccountID);
+                $this->systemHelper->sendErrorResponse('Your password has expired. Please reset it to proceed.');
             }
         
             if ($twoFactorAuth === 'Yes') {
@@ -80,29 +118,11 @@ class AuthenticationController {
             $_SESSION['user_account_id'] = $userAccountID;
             $_SESSION['session_token'] = $encryptedSessionToken;
     
-            $this->systemHelper->sendSuccessResponse('', '',  ['redirectLink' => 'apps.php']);
-    
+            #$this->systemHelper->sendSuccessResponse('', '',  ['redirectLink' => 'apps.php']);
         }
         else {
             header("HTTP/1.1 405 Method Not Allowed");
             exit;
-        }
-    }
-
-    private function handleInvalidCredentials($userAccountID, $failedAttempts, $accountLockDuration, $lastFailedLoginAttempt) {
-        $failedAttempts = $failedAttempts + 1;
-        $lastFailedLogin = date('Y-m-d H:i:s');
-    
-        $securitySettingDetails = $this->securitySetting->getSecuritySetting( 1);
-        $maxFailedLoginAttempts = $securitySettingDetails['value'] ?? MAX_FAILED_LOGIN_ATTEMPTS;
-
-        if($failedAttempts <= $maxFailedLoginAttempts ){
-            $this->authentication->updateLoginAttempt($userAccountID, $this->security->encryptData($failedAttempts), $lastFailedLogin);
-
-            $this->systemHelper->sendErrorResponse('Authentication Failed', 'Invalid credentials. Please check and try again.');
-        }
-        else{
-            $this->handleAccountLock($userAccountID, $accountLockDuration, $lastFailedLoginAttempt, $failedAttempts, $maxFailedLoginAttempts, $lastFailedLogin);
         }
     }
 
@@ -124,33 +144,6 @@ class AuthenticationController {
             'passwordExpired' => true,
             'redirectLink' => $defaultForgotPasswordLink . $encryptedUserAccountID .'&token=' . $encryptedResetToken
         ]);
-    }
-
-    private function handleAccountLock($userAccountID, $accountLockDuration, $lastFailedLoginAttempt, $failedAttempts, $maxFailedLoginAttempts, $lastFailedLogin) {
-        $time = time();
-        $lastFailedLoginTimestamp = strtotime($lastFailedLoginAttempt);
-        $unlockTime = $lastFailedLoginTimestamp + $accountLockDuration;
-    
-        if ($time <= $unlockTime) {
-            $remainingTime = $unlockTime - $time;
-            $durationParts = $this->systemHelper->formatDuration($remainingTime);
-        }
-        else {
-            $this->authentication->updateLoginAttempt($userAccountID, $this->security->encryptData($failedAttempts), $lastFailedLogin);
-
-            $userAccountLockDurationSettingDetails = $this->securitySetting->getSecuritySetting(9);
-            $baseLockDuration = $userAccountLockDurationSettingDetails['value'] ?? BASE_LOCK_DURATION;
-    
-            $lockDuration = $baseLockDuration * pow(1.5, ($failedAttempts - $maxFailedLoginAttempts));
-    
-            $this->authentication->updateAccountLock($userAccountID, $this->security->encryptData('Yes'), $this->security->encryptData($lockDuration));
-    
-            $durationParts = $this->systemHelper->formatDuration($lockDuration);
-        }
-    
-        $message = 'Your account is locked. Try again in ' . (!empty($durationParts) ? implode(', ', $durationParts) : 'a moment') . '.';
-        
-        $this->systemHelper->sendErrorResponse('Account Locked', $message);
     }
 
     private function handleTwoFactorAuth($userAccountID, $email, $encryptedUserID) {
@@ -479,24 +472,5 @@ class AuthenticationController {
         }
     
         return $total;
-    }
-
-    private function checkAccountLock($userAccountID, $accountLockDuration, $lastFailedLoginAttempt) {
-        $time = time();
-        $lastFailedLoginTimestamp = strtotime($lastFailedLoginAttempt);
-        $unlockTime = $lastFailedLoginTimestamp + $accountLockDuration;
-    
-        if ($time <= $unlockTime) {
-            $remainingTime = $unlockTime - $time;
-            $durationParts = $this->systemHelper->formatDuration($remainingTime);
-
-            $message = 'Your account is locked. Try again in ' . (!empty($durationParts) ? implode(', ', $durationParts) : 'a moment') . '.';
-        
-            $this->systemHelper->sendErrorResponse('Account Locked', $message);
-        }
-        else{
-            $this->authentication->updateAccountLock($userAccountID, $this->security->encryptData('No'), $this->security->encryptData(0));
-            $this->authentication->updateLoginAttempt($userAccountID, $this->security->encryptData(0), '');
-        }
     }
 }

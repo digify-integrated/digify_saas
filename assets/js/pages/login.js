@@ -103,7 +103,8 @@ const authenticateUser = (baseUrl, formData) =>
  */
 const handleSuccessResponse = ({ success, passwordExpired, title, message, messageType, redirectLink }) => {
     if (success) {
-        window.location.href = redirectLink;
+        //window.location.href = redirectLink;
+        showNotification(title, message, messageType);
     } else if (passwordExpired) {
         setNotification(title, message, messageType);
         window.location.href = redirectLink;
