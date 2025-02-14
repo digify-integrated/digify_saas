@@ -1,67 +1,61 @@
 <?php
 
-// Start the session to manage user login state
-session_start();
+/**
+ * Bootstrap the application by initializing the session, loading dependencies,
+ * and setting up the router with defined routes.
+ */
 
-// Include the required classes for routing and autoloading
+// Start session if not already started
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+if (!isset($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32)); // Secure token
+}
+
+// Include required class files
 require_once './router.php';
 require_once './autoload.php';
 
-/**
- * Initialize Router and User Authentication Status
- */
+// Import middleware classes
+use App\Middlewares\AuthMiddleware;
+use App\Middlewares\GuestMiddleware;
+
+// Instantiate the router
 $router = new Router();
-$isLoggedIn = isset($_SESSION['user_account_id']); // Check if user is logged in
+
+// Instantiate middleware instances
+$authMiddleware = new AuthMiddleware();
+$guestMiddleware = new GuestMiddleware();
 
 /**
- * Define all routes, including public, unauthenticated, and logged-in routes
+ * Public Routes - Accessible to everyone (no authentication required).
  */
-$routes = [
-    // Public routes (accessible to all)
-    'public' => [
-        '/about' => ['AboutController', 'index', 'GET'],
-        '/contact' => ['ContactController', 'index', 'GET'],
-    ],
-    
-    // Routes accessible only to unauthenticated users (e.g., login, authentication)
-    'unauthenticated' => [
-        '/login' => ['AuthenticationController', 'index', 'GET'],
-        '/authenticate' => ['AuthenticationController', 'authenticate', 'POST'],
-    ],
-    
-    // Routes accessible only to logged-in users
-    'protected' => [
-        '/app' => ['AppController', 'index', 'GET'],
-    ],
-];
+$router->add('/about', 'AboutController', 'index', 'GET');
+$router->add('/contact', 'ContactController', 'index', 'GET');
 
 /**
- * Register Routes based on User Authentication Status
+ * Guest Routes - Only accessible when the user is **not logged in**.
+ * These routes prevent logged-in users from accessing authentication pages.
  */
-foreach ($routes as $type => $routeSet) {
-    foreach ($routeSet as $route => $controllerMethod) {
-        // Public routes are accessible to everyone
-        if ($type === 'public') {
-            $httpMethod = $controllerMethod[2] ?? 'GET'; // Default to GET if not specified
-            $router->add($route, $controllerMethod[0], $controllerMethod[1], $httpMethod);
-        }
-
-        // Unauthenticated routes should only be accessible when the user is not logged in
-        elseif ($type === 'unauthenticated' && !$isLoggedIn) {
-            $httpMethod = $controllerMethod[2] ?? 'GET';
-            $router->add($route, $controllerMethod[0], $controllerMethod[1], $httpMethod);
-        }
-
-        // Protected routes are accessible only when the user is logged in
-        elseif ($type === 'protected' && $isLoggedIn) {
-            $httpMethod = $controllerMethod[2] ?? 'GET';
-            $router->add($route, $controllerMethod[0], $controllerMethod[1], $httpMethod);
-        }
-    }
-}
+$router->group(['middleware' => [$guestMiddleware]], function ($router) {
+    $router->add('/login', 'AuthenticationController', 'index', 'GET');         // Login page
+    $router->add('/authenticate', 'AuthenticationController', 'authenticate', 'POST'); // Login processing
+});
 
 /**
- * Get the requested URL and route it to the appropriate controller method
+ * Protected Routes - Only accessible when the user **is logged in**.
+ * Users must be authenticated to access these routes.
  */
-$routeUrl = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH); // Strip query parameters, focus on the path
+$router->group(['middleware' => [$authMiddleware], 'prefix' => 'app'], function ($router) {
+    $router->add('/', 'AppController', 'index', 'GET');                  // Dashboard homepage
+    $router->add('/dashboard', 'DashboardController', 'index', 'GET');   // User dashboard
+    $router->add('/settings', 'SettingsController', 'index', 'GET');     // User settings
+});
+
+/**
+ * Get the requested URL and process the route.
+ */
+$routeUrl = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $router->route($routeUrl);

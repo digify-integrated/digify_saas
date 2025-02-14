@@ -28,6 +28,10 @@ class AuthenticationController {
 
     public function authenticate() {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+                $this->systemHelper->sendErrorResponse('Invalid CSRF token.');
+            }
+
             $username = filter_input(INPUT_POST, 'username', FILTER_SANITIZE_STRING);
             $password = filter_input(INPUT_POST, 'password', FILTER_SANITIZE_STRING);
             $deviceInfo = filter_input(INPUT_POST, 'device_info', FILTER_SANITIZE_STRING);
@@ -118,7 +122,7 @@ class AuthenticationController {
             $_SESSION['user_account_id'] = $userAccountID;
             $_SESSION['session_token'] = $encryptedSessionToken;
     
-            #$this->systemHelper->sendSuccessResponse('', '',  ['redirectLink' => 'apps.php']);
+            $this->systemHelper->sendSuccessResponse('', '',  ['redirectLink' => 'apps.php']);
         }
         else {
             header("HTTP/1.1 405 Method Not Allowed");

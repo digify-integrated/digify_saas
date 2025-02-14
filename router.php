@@ -1,64 +1,117 @@
 <?php
 
 /**
- * Router class to manage application routing.
- * 
- * The Router class allows defining routes, handling HTTP requests, 
- * and mapping them to the appropriate controller and method. 
- * It supports dynamic parameters in routes.
+ * Router class to manage application routing with support for:
+ * - Route definitions with dynamic parameters.
+ * - Middleware execution before accessing routes.
+ * - Route grouping with shared middlewares and URL prefixes.
  */
 class Router {
     /**
-     * @var array $routes Array storing the defined routes.
+     * @var array $routes Stores the defined routes with their patterns, controllers, methods, and middlewares.
      */
     private $routes = [];
 
     /**
+     * @var array $groupMiddlewares Stores middlewares applied to a group of routes.
+     */
+    private $groupMiddlewares = [];
+
+    /**
+     * @var string $groupPrefix Stores the URL prefix applied to a group of routes.
+     */
+    private $groupPrefix = '';
+
+    /**
+     * Define a group of routes with shared middlewares and/or URL prefix.
+     * 
+     * @param array    $options  Associative array with optional keys:
+     *                           - 'middleware' (array): List of middleware instances to apply.
+     *                           - 'prefix' (string): Common prefix to be added to all routes in the group.
+     * @param callable $callback A function that defines routes within the group.
+     */
+    public function group(array $options, callable $callback) {
+        // Store previous group configurations
+        $previousMiddlewares = $this->groupMiddlewares;
+        $previousPrefix = $this->groupPrefix;
+
+        // Merge middleware and prefix settings
+        if (isset($options['middleware'])) {
+            $this->groupMiddlewares = array_merge($this->groupMiddlewares, $options['middleware']);
+        }
+
+        if (isset($options['prefix'])) {
+            $this->groupPrefix .= '/' . trim($options['prefix'], '/');
+        }
+
+        // Execute the callback to register grouped routes
+        $callback($this);
+
+        // Restore previous group configurations after the group execution
+        $this->groupMiddlewares = $previousMiddlewares;
+        $this->groupPrefix = $previousPrefix;
+    }
+
+    /**
      * Add a new route to the router.
      * 
-     * @param string $route       The URL pattern for the route. Dynamic segments should be enclosed in curly braces (e.g., "/users/{id}").
-     * @param string $controller  The name of the controller to handle the route.
-     * @param string $method      The name of the method within the controller to execute.
-     * @param string $httpMethod  The HTTP method for the route (e.g., 'GET', 'POST'). Default is 'GET'.
-     * 
-     * @return void
+     * @param string $route      The URL pattern for the route. Dynamic segments should be enclosed in `{}` (e.g., `/users/{id}`).
+     * @param string $controller The name of the controller handling this route.
+     * @param string $method     The method within the controller that should be executed.
+     * @param string $httpMethod The HTTP method for this route (e.g., 'GET', 'POST'). Default is 'GET'.
+     * @param array  $middlewares Optional array of middleware instances to apply to this specific route.
      */
-    public function add($route, $controller, $method, $httpMethod = 'GET') {
-        // Convert dynamic segments (e.g., {id}) into regex named groups (e.g., (?P<id>[^/]+))
-        $routePattern = preg_replace('/\{(\w+)\}/', '(?P<$1>[^/]+)', $route);
-        // Pre-compile the regex pattern to enhance matching performance
+    public function add($route, $controller, $method, $httpMethod = 'GET', $middlewares = []) {
+        // Apply group prefix to the route
+        $fullRoute = $this->groupPrefix . $route;
+
+        // Merge group-level and route-specific middlewares
+        $middlewares = array_merge($this->groupMiddlewares, $middlewares);
+
+        // Convert dynamic segments `{param}` into regex named groups `(?P<param>[^/]+)`
+        $routePattern = preg_replace('/\{(\w+)\}/', '(?P<$1>[^/]+)', $fullRoute);
+
+        // Store route definition
         $this->routes[] = [
-            'pattern' => '#^' . $routePattern . '$#', 
+            'pattern' => '#^' . $routePattern . '$#',
             'controller' => $controller,
             'method' => $method,
-            'httpMethod' => strtoupper($httpMethod)
+            'httpMethod' => strtoupper($httpMethod),
+            'middlewares' => $middlewares
         ];
     }
 
     /**
-     * Handle an incoming HTTP request and route it to the appropriate controller and method.
+     * Handle an incoming request and route it to the appropriate controller and method.
      * 
-     * @param string $url The URL of the incoming request.
-     * 
-     * @return void
+     * @param string $url The requested URL.
      */
     public function route($url) {
+        // Normalize the URL for comparison
         $url = $this->normalizeUrl($url);
 
-        // Iterate through defined routes to find a match
+        // Iterate over defined routes to find a match
         foreach ($this->routes as $route) {
             if (preg_match($route['pattern'], $url, $matches)) {
                 // Check if the HTTP method matches
                 if ($_SERVER['REQUEST_METHOD'] === $route['httpMethod']) {
                     $params = $this->extractParams($matches);
 
+                    // Execute middleware before accessing the controller
+                    foreach ($route['middlewares'] as $middleware) {
+                        if (!$middleware->handle()) {
+                            return; // Stop execution if middleware fails
+                        }
+                    }
+
+                    // Resolve the controller class name
                     $controllerClass = 'App\\Controllers\\' . $route['controller'];
 
-                    // Include the controller file and check existence
+                    // Load and instantiate the controller
                     $this->loadController($controllerClass);
-
-                    // Instantiate the controller and invoke the method
                     $controller = new $controllerClass();
+
+                    // Call the specified method with parameters
                     call_user_func_array([$controller, $route['method']], $params);
                     return;
                 } else {
@@ -67,59 +120,53 @@ class Router {
             }
         }
 
-        // Route not found - include the 404 error page
+        // No matching route found
         $this->sendError(404, "Page Not Found");
     }
 
     /**
-     * Normalize the URL (e.g., removing base path and query strings).
+     * Normalize the requested URL by stripping the base path and query strings.
      * 
-     * @param string $url The URL to normalize.
-     * @return string Normalized URL.
+     * @param string $url The raw requested URL.
+     * @return string The normalized URL.
      */
     private function normalizeUrl($url) {
         $baseUrl = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
-        $url = str_replace($baseUrl, '', $url);
-        return parse_url($url, PHP_URL_PATH);
+        return str_replace($baseUrl, '', parse_url($url, PHP_URL_PATH));
     }
 
     /**
-     * Extract dynamic parameters from regex matches.
+     * Extract dynamic route parameters from regex matches.
      * 
-     * @param array $matches The regex matches.
+     * @param array $matches The regex matches from the URL pattern.
      * @return array The extracted parameters.
      */
     private function extractParams($matches) {
         $params = [];
         foreach ($matches as $key => $value) {
             if (!is_int($key)) {
-                $params[$key] = filter_var($value, FILTER_SANITIZE_STRING); // Sanitize inputs for security
+                $params[$key] = filter_var($value, FILTER_SANITIZE_STRING);
             }
         }
         return $params;
     }
 
     /**
-     * Include the controller file and handle errors if not found.
+     * Load a controller class and handle errors if it does not exist.
      * 
      * @param string $controllerClass The fully qualified controller class name.
-     * @return void
      */
     private function loadController($controllerClass) {
-        // Autoloader will automatically take care of loading the controller class
         if (!class_exists($controllerClass)) {
             $this->sendError(500, "Controller not found: $controllerClass");
         }
     }
 
-
-
     /**
-     * Send an HTTP error response and exit.
+     * Send an HTTP error response with a given status code and message.
      * 
-     * @param int $code The HTTP status code.
-     * @param string $message The error message.
-     * @return void
+     * @param int    $code    The HTTP status code (e.g., 404, 500).
+     * @param string $message The error message to display.
      */
     private function sendError($code, $message) {
         http_response_code($code);
