@@ -7,24 +7,31 @@ use App\Middlewares\MiddlewareInterface;
 /**
  * Guest Middleware
  * 
- * This middleware ensures that only **unauthenticated** users can access certain routes.
- * If the user is already logged in, they are redirected to the `/app` route.
+ * This middleware ensures that only **unauthenticated** users can access specific routes.
+ * If the user is already logged in (i.e., authenticated), they are redirected to the `/app` route
+ * to prevent access to guest-only pages like login or registration.
  */
 class GuestMiddleware implements MiddlewareInterface {
     /**
-     * Handle guest user check before allowing access to a route.
+     * Handles the check for guest users before allowing access to a route.
      * 
-     * If the user is already authenticated, they are redirected to `/app` to prevent 
-     * accessing guest-only pages like login or registration.
+     * This method ensures that authenticated users (i.e., those with `user_account_id` in their session)
+     * cannot access routes meant for guests (such as login or registration). If the user is authenticated,
+     * they are redirected to the `/app` route to avoid them accessing guest-specific pages.
      * 
-     * @return bool Always returns `true` to allow further execution.
+     * @return bool Always returns `true` to allow further execution if the user is not authenticated.
+     *              If the user is authenticated, a redirect happens, and further execution is halted.
      */
-    public function handle() {
+    public function handle(): bool
+    {
+        // Check if the user is authenticated by looking for 'user_account_id' in the session
         if (isset($_SESSION['user_account_id'])) {
+            // If authenticated, redirect to the '/app' route to prevent access to guest-only pages
             header("Location: /app");
-            exit; // Prevent further execution
+            exit; // Stop further execution after redirect
         }
 
-        return true; // Allow request to proceed
+        // If not authenticated, allow the request to proceed to the guest-only route
+        return true;
     }
 }

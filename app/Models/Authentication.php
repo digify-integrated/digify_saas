@@ -6,15 +6,14 @@ use App\Core\Model;
 class Authentication extends Model {
 
     # -------------------------------------------------------------
-    #   Get methods
+    #   Fetch methods
     # -------------------------------------------------------------
 
-    public function getLoginCredentials($p_user_account_id, $p_credentials) {
-        $sql = 'CALL getLoginCredentials(:p_user_account_id, :p_credentials)';
+    public function fetchLoginCredentials($p_user_name) {
+        $sql = 'CALL fetchLoginCredentials(:p_user_name)';
         
         return $this->fetch($sql, [
-            'p_user_account_id' => $p_user_account_id,
-            'p_credentials' => $p_credentials
+            'p_user_name' => $p_user_name
         ]);
     }
 
@@ -40,11 +39,10 @@ class Authentication extends Model {
     #   Check exist methods
     # -------------------------------------------------------------
 
-    public function checkLoginCredentialsExist($p_user_account_id, $p_credentials) {
-        $sql = 'CALL checkLoginCredentialsExist(:p_user_account_id, :p_credentials)';
+    public function loginCredentialsExist($p_credentials) {
+        $sql = 'CALL loginCredentialsExist(:p_credentials)';
         
         return $this->fetch($sql, [
-            'p_user_account_id' => $p_user_account_id,
             'p_credentials' => $p_credentials
         ]);
     }
@@ -93,24 +91,6 @@ class Authentication extends Model {
     # -------------------------------------------------------------
 
     # -------------------------------------------------------------
-    #   Insert methods
-    # -------------------------------------------------------------
-
-    public function insertLoginSession($p_user_account_id, $p_location, $p_login_status, $p_device, $p_ip_address) {
-        $sql = 'CALL insertLoginSession(:p_user_account_id, :p_location, :p_login_status, :p_device, :p_ip_address)';
-        
-        return $this->query($sql, [
-            'p_user_account_id' => $p_user_account_id,
-            'p_location' => $p_location,
-            'p_login_status' => $p_login_status,
-            'p_device' => $p_device,
-            'p_ip_address' => $p_ip_address
-        ]);
-    }
-    
-    # -------------------------------------------------------------
-
-    # -------------------------------------------------------------
     #   Update methods
     # -------------------------------------------------------------
 
@@ -120,6 +100,15 @@ class Authentication extends Model {
         return $this->query($sql, [
             'p_user_account_id' => $p_user_account_id,
             'p_failed_login_attempts' => $p_failed_login_attempts
+        ]);
+    }
+
+    public function updateAccountLockDuration($p_user_account_id, $p_lock_duration) {
+        $sql = "CALL updateAccountLockDuration(:p_user_account_id, :p_lock_duration)";
+        
+        return $this->query($sql, [
+            'p_user_account_id' => $p_user_account_id,
+            'p_lock_duration' => $p_lock_duration
         ]);
     }
 
@@ -143,12 +132,11 @@ class Authentication extends Model {
         ]);
     }
 
-    public function updateLastConnection($p_user_account_id, $p_session_token) {
-        $sql = 'CALL updateLastConnection(:p_user_account_id, :p_session_token)';
+    public function updateLastConnection($p_user_account_id) {
+        $sql = 'CALL updateLastConnection(:p_user_account_id)';
         
         return $this->query($sql, [
-            'p_user_account_id' => $p_user_account_id,
-            'p_session_token' => $p_session_token
+            'p_user_account_id' => $p_user_account_id
         ]);
     }
 

@@ -38,8 +38,8 @@ define('MAX_FILE_SIZE', 10485760);                // Maximum file size for uploa
 // -------------------------------------------------------------
 // Mail Configuration
 // -------------------------------------------------------------
-define('MAIL_SMTP_SERVER', 'smtp.hostinger.com');            // SMTP server
-define('MAIL_SMTP_PORT', 465);                             // SMTP port (typically 465 for SSL)
+define('MAIL_HOST', 'smtp.hostinger.com');            // SMTP server
+define('MAIL_PORT', 465);                             // SMTP port (typically 465 for SSL)
 define('MAIL_USERNAME', 'cgmi-noreply@christianmotors.ph'); // SMTP username
 define('MAIL_PASSWORD', 'P@ssw0rd');                       // SMTP password
 define('MAIL_FROM_EMAIL', 'cgmi-noreply@christianmotors.ph'); // Sender email address

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Helpers;
 
-use DateTime;
 use DateTimeImmutable;
 use Exception;
 
@@ -12,9 +11,10 @@ class SystemHelper
 {
     /**
      * Returns a human-readable time difference string (e.g., "5 minutes ago").
+     * If the time difference is greater than 24 hours, it returns a formatted date.
      *
-     * @param string $dateTime The date-time string.
-     * @return string Human-readable time difference or formatted date if > 24 hours.
+     * @param string $dateTime The date-time string to compare against the current time
+     * @return string A human-readable time difference or a formatted date if > 24 hours
      */
     public static function timeElapsedString(string $dateTime): string
     {
@@ -58,11 +58,12 @@ class SystemHelper
     }
 
     /**
-     * Returns the difference between two dates in years and months.
+     * Returns the difference between two dates in years and months in a human-readable format.
+     * The dates are expected to be in the format "F Y" (e.g., "Feb 2025").
      *
-     * @param string $startDateTime The start date (format: "F Y").
-     * @param string $endDateTime The end date (format: "F Y").
-     * @return string Human-readable duration.
+     * @param string $startDateTime The start date in "F Y" format
+     * @param string $endDateTime The end date in "F Y" format
+     * @return string A human-readable duration, such as "2 years and 3 months"
      */
     public static function yearMonthElapsedComparisonString(string $startDateTime, string $endDateTime): string
     {
@@ -77,6 +78,7 @@ class SystemHelper
             $interval = $startDate->diff($endDate);
             $elapsedTime = [];
 
+            // Add years and months to the duration
             if ($interval->y > 0) {
                 $elapsedTime[] = $interval->y . ' ' . ($interval->y === 1 ? 'year' : 'years');
             }
@@ -91,12 +93,13 @@ class SystemHelper
     }
 
     /**
-     * Formats a given date according to a specified format.
+     * Formats a given date according to the specified format.
+     * Optionally, you can modify the date before formatting it.
      *
-     * @param string $format Date format.
-     * @param string $date Input date string.
-     * @param string|null $modify Optional modification string.
-     * @return string Formatted date.
+     * @param string $format The desired date format (e.g., "Y-m-d H:i:s")
+     * @param string $date The date string to format
+     * @param string|null $modify Optional modification string (e.g., "+1 day")
+     * @return string The formatted date string or 'Invalid date' if parsing fails
      */
     public static function formatDate(string $format, string $date, ?string $modify = null): string
     {
@@ -108,12 +111,12 @@ class SystemHelper
         }
     }
 
-
     /**
-     * Formats a duration from seconds into human-readable time (years, months, days, etc.).
+     * Formats a duration from seconds into a human-readable time format (years, months, days, etc.).
+     * Returns an array of formatted parts (e.g., ["1 year", "2 months"]).
      *
-     * @param int $lockDuration Duration in seconds.
-     * @return array Human-readable duration parts.
+     * @param int $lockDuration Duration in seconds
+     * @return array An array of human-readable duration parts (e.g., ["1 year", "2 months"])
      */
     public static function formatDuration(int $lockDuration): array
     {
@@ -131,6 +134,7 @@ class SystemHelper
             $value = (int) floor($lockDuration / $seconds);
             $lockDuration %= $seconds;
 
+            // Add the unit to the duration parts if the value is greater than 0
             if ($value > 0) {
                 $durationParts[] = number_format($value) . ' ' . $unit . ($value > 1 ? 's' : '');
             }
@@ -140,12 +144,13 @@ class SystemHelper
     }
 
     /**
-     * Returns the default return value based on a type.
+     * Returns the default return value based on a given type.
+     * Useful for setting default system values based on context.
      *
-     * @param string $type The type of return value.
-     * @param string $systemDate Default system date.
-     * @param string $systemTime Default system time.
-     * @return string|null The corresponding value.
+     * @param string $type The type of value to return (e.g., 'default', 'default time', etc.)
+     * @param string $systemDate Default system date
+     * @param string $systemTime Default system time
+     * @return string|null The corresponding default value, or null if not applicable
      */
     public static function getDefaultReturnValue(string $type, string $systemDate, string $systemTime): ?string
     {
@@ -159,32 +164,11 @@ class SystemHelper
     }
 
     /**
-     * Retrieves the public IP address.
-     *
-     * @return string The public IP address or error message.
-     */
-    public static function getPublicIPAddress(): string
-    {
-        return @file_get_contents('https://api.ipify.org') ?: 'IP Not Available';
-    }
-
-    /**
-     * Fetches the location based on an IP address.
-     *
-     * @param string $ipAddress The IP address.
-     * @return string Location (City, Country) or 'Unknown'.
-     */
-    public static function getLocation(string $ipAddress): string
-    {
-        $data = @json_decode(file_get_contents("http://ipinfo.io/{$ipAddress}/json"), true);
-        return $data['city'] ?? 'Unknown' . ', ' . ($data['country'] ?? 'Unknown');
-    }
-
-    /**
      * Sends an error response as JSON and terminates the script.
+     * Useful for API endpoints that need to return error information.
      *
-     * @param string $message Error message.
-     * @param array $additionalData Additional response data.
+     * @param string $message The error message to include in the response
+     * @param array $additionalData Additional data to include in the response
      */
     public static function sendErrorResponse(string $message, array $additionalData = []): void
     {
@@ -194,9 +178,10 @@ class SystemHelper
 
     /**
      * Sends a success response as JSON and terminates the script.
+     * Useful for API endpoints that need to return success information.
      *
-     * @param string $message Success message.
-     * @param array $additionalData Additional response data.
+     * @param string $message The success message to include in the response
+     * @param array $additionalData Additional data to include in the response
      */
     public static function sendSuccessResponse(string $message, array $additionalData = []): void
     {

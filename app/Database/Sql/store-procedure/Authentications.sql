@@ -1,19 +1,167 @@
 DELIMITER //
 
-/* Check Stored Procedure */
+DROP PROCEDURE IF EXISTS loginCredentialsExist//
 
-DROP PROCEDURE IF EXISTS checkLoginCredentialsExist//
-CREATE PROCEDURE checkLoginCredentialsExist(
-    IN p_user_account_id INT,
-    IN p_credentials VARCHAR(255)
+CREATE PROCEDURE loginCredentialsExist(
+    IN p_username VARCHAR(100)
 )
 BEGIN
-    SELECT COUNT(*) AS total
-    FROM user_account
-    WHERE user_account_id = p_user_account_id
-       OR username = BINARY p_credentials
-       OR email = BINARY p_credentials;
+    DECLARE username_exists INT DEFAULT 0;
+
+    -- Check if the username exists
+    SELECT COUNT(*) INTO username_exists
+    FROM user_accounts
+    WHERE username = p_username;
+
+    -- Return the result: 1 if exists, 0 if not
+    SELECT username_exists AS exists;
 END //
+
+DROP PROCEDURE IF EXISTS updateLoginAttempt //
+
+CREATE PROCEDURE updateLoginAttempt(
+    IN p_user_account_id INT, 
+    IN p_failed_login_attempts INT
+)
+BEGIN
+    SET time_zone = '+08:00';
+
+    DECLARE CONTINUE HANDLER FOR SQLEXCEPTION, SQLWARNING
+    BEGIN
+        ROLLBACK;
+    END;
+
+    START TRANSACTION;
+
+    IF EXISTS (SELECT 1 FROM user_accounts WHERE user_account_id = p_user_account_id) THEN
+        UPDATE user_accounts
+        SET failed_login_attempts = p_failed_login_attempts, 
+            last_failed_login_attempt = NOW()
+        WHERE user_account_id = p_user_account_id;
+
+        COMMIT;
+    ELSE
+        ROLLBACK;
+    END IF;
+END //
+
+DROP PROCEDURE IF EXISTS updateAccountLockDuration //
+
+CREATE PROCEDURE updateAccountLockDuration(
+    IN p_user_account_id INT,  
+    IN p_locked_duration INT
+)
+BEGIN
+    SET time_zone = '+08:00';
+
+    DECLARE CONTINUE HANDLER FOR SQLEXCEPTION, SQLWARNING
+    BEGIN
+        ROLLBACK;
+    END;
+
+    START TRANSACTION;
+
+    IF EXISTS (SELECT 1 FROM user_accounts WHERE user_account_id = p_user_account_id) THEN
+        UPDATE user_accounts
+        SET locked_duration = p_locked_duration
+        WHERE user_account_id = p_user_account_id;
+
+        COMMIT;
+    ELSE
+        ROLLBACK;
+    END IF;
+END //
+
+DROP PROCEDURE IF EXISTS updateLastConnection//
+
+CREATE PROCEDURE updateLastConnection(
+    IN p_user_account_id INT
+)
+BEGIN
+    SET time_zone = '+08:00';
+
+    DECLARE CONTINUE HANDLER FOR SQLEXCEPTION, SQLWARNING
+    BEGIN
+        ROLLBACK;
+    END;
+
+    START TRANSACTION;
+
+    IF EXISTS (SELECT 1 FROM user_accounts WHERE user_account_id = p_user_account_id) THEN
+        UPDATE user_accounts
+        SET last_connection_date = NOW()
+        WHERE user_account_id = p_user_account_id;
+
+        COMMIT;
+    ELSE
+        ROLLBACK;
+    END IF;
+END //
+
+DROP PROCEDURE IF EXISTS updateOTP//
+
+CREATE PROCEDURE updateOTP(
+    IN p_user_account_id INT, 
+    IN p_otp VARCHAR(255), 
+    IN p_otp_expiry_date DATETIME
+)
+BEGIN
+    SET time_zone = '+08:00';
+
+    DECLARE CONTINUE HANDLER FOR SQLEXCEPTION, SQLWARNING
+    BEGIN
+        ROLLBACK;
+    END;
+
+    START TRANSACTION;
+
+    IF EXISTS (SELECT 1 FROM user_accounts WHERE user_account_id = p_user_account_id) THEN
+        UPDATE user_accounts
+        SET otp = p_otp, 
+            otp_expiry_date = p_otp_expiry_date, 
+            failed_otp_attempts = 0,
+            locked_duration = 0
+        WHERE user_account_id = p_user_account_id;
+
+        COMMIT;
+    ELSE
+        ROLLBACK;
+    END IF;
+END //
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 DROP PROCEDURE IF EXISTS checkAccessRights//
 CREATE PROCEDURE checkAccessRights(IN p_user_account_id INT, IN p_menu_item_id INT, IN p_access_type VARCHAR(10))
@@ -126,93 +274,10 @@ END //
 
 /* Update Stored Procedure */
 
-DROP PROCEDURE IF EXISTS updateLoginAttempt//
-CREATE PROCEDURE updateLoginAttempt(
-    IN p_user_account_id INT, 
-    IN p_failed_login_attempts INT(5)
-)
-BEGIN
-    DECLARE EXIT HANDLER FOR SQLEXCEPTION
-    BEGIN
-        ROLLBACK;
-    END;
 
-    START TRANSACTION;
 
-    UPDATE user_account
-    SET failed_login_attempts = p_failed_login_attempts, 
-        last_failed_login_attempt = NOW()
-    WHERE user_account_id = p_user_account_id;
 
-    COMMIT;
-END //
 
-DROP PROCEDURE IF EXISTS updateAccountLock//
-CREATE PROCEDURE updateAccountLock(
-    IN p_user_account_id INT, 
-    IN p_locked VARCHAR(255), 
-    IN p_account_lock_duration VARCHAR(255)
-)
-BEGIN
-    DECLARE EXIT HANDLER FOR SQLEXCEPTION
-    BEGIN
-        ROLLBACK;
-    END;
-
-    START TRANSACTION;
-
-    UPDATE user_account
-    SET locked = p_locked, 
-        account_lock_duration = p_account_lock_duration
-    WHERE user_account_id = p_user_account_id;
-
-    COMMIT;
-END //
-
-DROP PROCEDURE IF EXISTS updateOTP//
-CREATE PROCEDURE updateOTP(
-    IN p_user_account_id INT, 
-    IN p_otp VARCHAR(255), 
-    IN p_otp_expiry_date VARCHAR(255), 
-    IN p_failed_otp_attempts VARCHAR(255)
-)
-BEGIN
-    DECLARE EXIT HANDLER FOR SQLEXCEPTION
-    BEGIN
-        ROLLBACK;
-    END;
-
-    START TRANSACTION;
-
-    UPDATE user_account
-    SET otp = p_otp, 
-        otp_expiry_date = p_otp_expiry_date, 
-        failed_otp_attempts = p_failed_otp_attempts
-    WHERE user_account_id = p_user_account_id;
-
-    COMMIT;
-END //
-
-DROP PROCEDURE IF EXISTS updateLastConnection//
-CREATE PROCEDURE updateLastConnection(
-    IN p_user_account_id INT, 
-    IN p_session_token VARCHAR(255)
-)
-BEGIN
-    DECLARE EXIT HANDLER FOR SQLEXCEPTION
-    BEGIN
-        ROLLBACK;
-    END;
-
-    START TRANSACTION;
-    
-    UPDATE user_account
-    SET session_token = p_session_token, 
-        last_connection_date = NOW()
-    WHERE user_account_id = p_user_account_id;
-
-    COMMIT;
-END //
 
 DROP PROCEDURE IF EXISTS updateFailedOTPAttempts//
 CREATE PROCEDURE updateFailedOTPAttempts(

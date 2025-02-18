@@ -9,8 +9,8 @@ class SecuritySetting extends Model {
     #   Get methods
     # -------------------------------------------------------------
 
-    public function getSecuritySetting($p_security_setting_id) {
-        $sql = 'CALL getSecuritySetting(:p_security_setting_id)';
+    public function fetchSecuritySetting($p_security_setting_id) {
+        $sql = 'CALL fetchSecuritySetting(:p_security_setting_id)';
         
         return $this->fetch($sql, [
             'p_security_setting_id' => $p_security_setting_id
